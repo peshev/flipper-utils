@@ -199,7 +199,7 @@ def download_firmware(sdcard_base):
 
     print(f"Downloading RogueMaster release from {roguemaster_download_url} ... ", end="", flush=True)
     roguemaster_release_bytes = requests.get(roguemaster_download_url).content
-    print("done")
+    print("done.")
 
     with CustomZipFile(io.BytesIO(roguemaster_release_bytes)) as z:
         for _ in tqdm.tqdm(z.extractall(update_dir, strip_leading_dirs=True),
@@ -212,13 +212,19 @@ tail_regex = re.compile(r'\s*files? to (?:the )?SD/(\S+)')
 
 
 def parse_file_list_links(url="https://flipper.pingywon.com/"):
+    print(f"Getting asset file directories from {url} ... ", end="", flush=True)
     links = lxml.html.fromstring(
         requests.get(url).content
     ).xpath("//h2[contains(text(),'MISC NOTES')]/following-sibling::ul/li/a")
+    print("done.")
+    assert links, f"ERROR: No asset file directories parsed at {url}. Maybe something changed on the page?"
     for i in tqdm.tqdm(links, desc="Parsing asset file directory listings"):
-        match = tail_regex.search(i.tail)
-        assert match, f"'{i.tail}' doesn't match '{tail_regex.pattern}'"
-        yield i.attrib["href"], match.group(1)
+        tail = i.tail.strip()
+        match = tail_regex.search(tail)
+        if match:
+            yield i.attrib["href"], match.group(1)
+        else:
+            print(f"'{tail}' doesn't match '{tail_regex.pattern}'")
 
 
 def parse_file_list(url):
@@ -280,7 +286,7 @@ def compare_file_metadata(old, new):
                 changed[k] = {"old": old_fileinfo[k], "new": new_fileinfo[k]}
         if changed:
             result[f] = {**changed, "state": "modified"}
-    print("done")
+    print("done.")
     return result
 
 
@@ -289,7 +295,7 @@ def dump_file_metadata_diff(diff):
     print(f"Dumping file metadata diff in {filename} ... ", end="", flush=True)
     with open(filename, "w") as fp:
         json.dump(diff, fp)
-    print("done")
+    print("done.")
 
 
 if __name__ == '__main__':
@@ -314,7 +320,7 @@ if __name__ == '__main__':
     if firmware_changed:
         print(f"Un-mounting {sdcard_partition_dev} ... ", end="", flush=True)
         subprocess.check_output(["udisksctl", "unmount", "-b", sdcard_partition_dev])
-        print("done")
+        print("done.")
         print("Remove SD card from computer card reader, "
               "insert SD card in Flipper Zero, "
               "run update in Flipper Zero, "
@@ -334,13 +340,10 @@ if __name__ == '__main__':
                                                           "Add_standard_frequencies: true")
     with open(subghz_setting_user_path, "w") as fp:
         fp.write(subghz_setting_user_new)
-    if subghz_setting_user == subghz_setting_user_new:
-        print("no change.")
-    else:
-        print("done.")
+    print("done.")
 
     print(f"Un-mounting {sdcard_partition_dev} ... ", end="", flush=True)
     subprocess.check_output(["udisksctl", "unmount", "-b", sdcard_partition_dev])
-    print("done")
+    print("done.")
 
     print("ALL DONE.")
